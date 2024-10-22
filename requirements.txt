@@ -6,3 +6,4 @@ gym
 tensorflow
 pytorch
 scikit-learn
+torch
