@@ -2,7 +2,8 @@ from src.environment.building_environment import BuildingEnvironment  # Import y
 from src.agents.td3_agent import TD3Agent  # Import your agent class (assuming it's in a module)
 from src.utils.data_preprocessing import preprocess_industry_data  # Import your data preprocessing function
 from src.utils.simulation_utils import simulate_leasing_with_vacating
-
+from pathlib import Path
+import pandas as pd
 
 def main():
     # File path for industry data
@@ -16,7 +17,7 @@ def main():
     agent = TD3Agent(state_dim=9, max_rent=10000, max_lease_length=15)
 
     # Hyperparameters
-    num_episodes = 1000
+    num_episodes = 500
     max_steps = 200
 
     # Lists to collect state variables over episodes
@@ -65,7 +66,24 @@ def main():
 
     print("Training completed.")
 
+    state_df = pd.DataFrame({
+        'IndustryGrowth': industry_growths,
+        'LeaseLength': lease_lengths,
+        'RSFOccupied': rsf_occupieds,
+        'OccupancyRate': occupancy_rates,
+        'IncentivesAvailable': incentives_available,
+        'EconomicIndicator': economic_indicators,
+        'VacancyRate': vacancy_rates
+    })
+    processed_data_dir = Path('data/processed')
+    output_file = processed_data_dir / 'leases_df.csv'
+    state_file = processed_data_dir / 'state_variables.csv'
+
     leases_df = simulate_leasing_with_vacating(agent, env, start_year=1990, num_years=20)
+    leases_df.to_csv(output_file, index=False)
+    print(f"leases_df.csv saved at {output_file}")
+    state_df.to_csv(state_file, index=False)
+    print(f"State variables saved to {state_file}")
 
 
 if __name__ == "__main__":
