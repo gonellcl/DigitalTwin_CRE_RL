@@ -41,7 +41,8 @@ Ultimately, the adaptive digital twin servies as a decision-support tool for rea
   ```
 - **Run the Real Estate Digital Twin Dashboard:**
   ```bash
-  python streamlit_app.py
+  python streamlit run streamlit_app.py
+
   ```
 - **Explore Jupyter Notebooks:**
   Open the `notebooks/` or  `plots/` directory and explore individual notebooks like `analysis.ipynb` , `sensitivity_analysis.ipynb` or `forecasting.ipynb` for interactive exploration.
