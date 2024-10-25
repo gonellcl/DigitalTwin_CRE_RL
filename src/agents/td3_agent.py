@@ -46,7 +46,7 @@ class Critic(nn.Module):
 
 class TD3Agent:
     def __init__(self, state_dim, max_rent, max_lease_length, memory_size=10000, batch_size=32, gamma=0.99, tau=0.005,
-                 lr=0.001, policy_noise=0.2, noise_clip=0.5, policy_delay=2):
+                 lr=0.001, policy_noise=0.2, noise_clip=0.5, policy_delay=2, epsilon=0.7):
         self.state_dim = state_dim
         self.action_dim = 3  # Predicting 3 variables: rent, lease length, vacancy rate
         self.max_rent = max_rent
@@ -58,6 +58,9 @@ class TD3Agent:
         self.policy_noise = policy_noise
         self.noise_clip = noise_clip
         self.policy_delay = policy_delay
+        self.exploratory_actions = 0  # Track exploratory actions
+        self.total_actions = 0  # Track total actions
+        self.epsilon = epsilon
 
         # Initialize actor and critic networks
         self.actor = Actor(state_dim, max_rent, max_lease_length)
@@ -78,25 +81,79 @@ class TD3Agent:
         self.total_it = 0  # For delayed policy updates
 
     def act(self, state):
+        """
+        Choose an action based on epsilon-greedy strategy and actor model prediction.
+        """
+        self.total_actions += 1
+
+        # Exploration: with probability epsilon, choose a random action
+        if np.random.rand() < self.epsilon:
+            self.exploratory_actions += 1
+            return self.random_action()
+
+        # Exploitation: with probability (1 - epsilon), use the actor model to predict action
         state = torch.FloatTensor(state).unsqueeze(0)
         with torch.no_grad():
             action = self.actor(state).squeeze(0).numpy()
 
+        # Split the action into components: rent_amount, lease_length, vacancy_rate
         rent_amount, lease_length, vacancy_rate = action
+
         # Ensure lease length is an integer and within a valid range
         lease_length = max(1, round(lease_length))
 
         return rent_amount, lease_length, vacancy_rate
 
+    def random_action(self):
+        """
+        Generate a random action for exploration.
+        """
+        rent_amount = np.random.uniform(0, self.max_rent)  # Random rent amount
+        lease_length = np.random.randint(1, self.max_lease_length + 1)  # Random lease length
+        vacancy_rate = np.random.uniform(0, 1)  # Random vacancy rate
+        return rent_amount, lease_length, vacancy_rate
+
+    def get_exploration_ratio(self):
+        """
+        Calculate the ratio of exploratory actions to total actions.
+        """
+        if self.total_actions > 0:
+            return self.exploratory_actions / self.total_actions
+        return 0.0
+
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
     def compute_reward(self, rent_amount, lease_length, vacancy_rate, done):
-        """Compute the reward for the agent's action based on the environment state and action taken."""
+        """
+        Compute the reward for the agent's action based on the environment state and action taken.
+
+        Args:
+        - rent_amount (float): The rent amount proposed by the agent.
+        - lease_length (int): The lease length proposed by the agent.
+        - vacancy_rate (float): The current vacancy rate in the environment.
+        - done (bool): Whether the episode is done.
+
+        Returns:
+        - reward (float): The computed reward for the agent's action.
+        """
         reward = 0
 
+        # Condition 1: High vacancy rate and long lease length
+        if vacancy_rate > 0.5 and lease_length >= 10:
+            reward = 100  # Significant reward for reducing vacancy with a long lease
+
+        # Condition 2: Rent amount too high relative to vacancy rate
+        elif vacancy_rate > 0.5 and rent_amount > (self.max_rent * 0.7):  # Example threshold
+            reward = 0  # No reward for high rent when vacancy is high
+
+        # Condition 3: Suboptimal combination of vacancy rate, lease length, and rent amount
+        elif vacancy_rate > 0.3 and lease_length < 5 and rent_amount > (self.max_rent * 0.5):
+            reward = 25  # Moderate reward for suboptimal but not entirely negative behavior
+
+        # Existing penalties/rewards
         # Penalty for high vacancy rates
-        if vacancy_rate > 0.3:  # Example threshold for high vacancy
+        if vacancy_rate > 0.3:
             reward -= 10 * (vacancy_rate - 0.3)  # Higher penalty for higher vacancy
 
         # Reward for maximizing rent amount (incentivize higher rent)
