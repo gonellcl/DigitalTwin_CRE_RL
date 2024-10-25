@@ -39,7 +39,7 @@ Ultimately, the adaptive digital twin servies as a decision-support tool for rea
   ```bash
   python main.py
   ```
-  - **Run the Real Estate Digital Twin Dashboard:**
+- **Run the Real Estate Digital Twin Dashboard:**
   ```bash
   python streamlit.py
   ```
