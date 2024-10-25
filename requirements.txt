@@ -6,3 +6,7 @@ gym
 tensorflow
 scikit-learn
 torch
+plotly
+seaborn
+streamlit
+keras
